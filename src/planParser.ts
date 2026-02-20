@@ -1,6 +1,6 @@
-import { KanbanData, Column, Card } from './types';
+import { KanbanData, Column, Card, Action } from './types';
 
-const STATUSES = ['Backlog', 'Ready', 'In Progress', 'Review', 'Testing', 'Done', 'Blocked'];
+const STATUSES:string[] = [];
 
 function slugify(title: string): string {
     return title.toLowerCase().replace(/\s+/g, '-');
@@ -13,14 +13,19 @@ export function parsePlan(content: string): KanbanData {
     let currentColumn: Column | null = null;
     let currentCard: Card | null = null;
     const descLines: string[] = [];
+    const actionLines: Action[] = [];
 
     function flushCard() {
         if (currentCard && currentColumn) {
             currentCard.description = descLines.join('\n').trim() || undefined;
+            if (actionLines.length > 0) {
+                currentCard.actions = [...actionLines];
+            }
             currentColumn.cards.push(currentCard);
         }
         currentCard = null;
         descLines.length = 0;
+        actionLines.length = 0;
     }
 
     const lines = content.replace(/\r/g, '').split('\n');
@@ -59,7 +64,18 @@ export function parsePlan(content: string): KanbanData {
                 currentCard.branch = branchMatch[1].trim();
                 continue;
             }
-            // Collect description lines (skip the blank line right after heading)
+            // > type | description | status  →  action row
+            const actionMatch = line.match(/^>\s*(.+)$/);
+            if (actionMatch) {
+                const parts = actionMatch[1].split('|').map(s => s.trim());
+                actionLines.push({
+                    type: parts[0] ?? '',
+                    description: parts[1] ?? '',
+                    status: parts[2] ?? '',
+                });
+                continue;
+            }
+            // Plain description line
             descLines.push(line);
         }
     }
@@ -80,6 +96,11 @@ export function serializePlan(data: KanbanData): string {
             }
             if (card.description) {
                 lines.push(card.description);
+            }
+            if (card.actions) {
+                for (const a of card.actions) {
+                    lines.push(`> ${a.type} | ${a.description} | ${a.status}`);
+                }
             }
             lines.push('');
         }

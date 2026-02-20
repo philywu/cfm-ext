@@ -10,14 +10,21 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:cfm-ext.openPanel"
+    "onCommand:cfm-ext.openPanel",
+    "onCommand:cfm-ext.init"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
         "command": "cfm-ext.openPanel",
-        "title": "Open Feature Manager"
+        "title": "Open",
+        "category": "Claude Feature Manager"
+      },
+      {
+        "command": "cfm-ext.init",
+        "title": "Init",
+        "category": "Claude Feature Manager"
       }
     ]
   },
@@ -26,7 +33,8 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "build:webview": "cd webview && npx vite build",
-    "build": "npm run compile && npm run build:webview",
+    "copy:templates": "node -e \"const fs=require('fs');fs.mkdirSync('out/template',{recursive:true});['PLAN.md','HOWTO.md','feature lifecycle manager.md'].forEach(f=>fs.copyFileSync('src/template/'+f,'out/template/'+f))\"",
+    "build": "npm run compile && npm run copy:templates && npm run build:webview",
     "pretest": "npm run build && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test"

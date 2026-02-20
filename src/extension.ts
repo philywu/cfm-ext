@@ -1,17 +1,63 @@
 import * as vscode from 'vscode';
 import { parsePlan, serializePlan } from './planParser';
-import { WebviewToHostMessage } from './types';
+import { Card, WebviewToHostMessage } from './types';
 
-const PLAN_PATH = 'feature/PLAN.md';
+const PLAN_PATH = '.feature/PLAN.md';
 
 export function activate(context: vscode.ExtensionContext) {
-    const disposable = vscode.commands.registerCommand('cfm-ext.openPanel', () => {
-        CfmPanel.createOrShow(context);
-    });
-    context.subscriptions.push(disposable);
+    context.subscriptions.push(
+        vscode.commands.registerCommand('cfm-ext.openPanel', () => {
+            CfmPanel.createOrShow(context);
+        }),
+        vscode.commands.registerCommand('cfm-ext.init', () => {
+            initFeatureFolder(context);
+        })
+    );
 }
 
 export function deactivate() {}
+
+async function initFeatureFolder(context: vscode.ExtensionContext) {
+    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri;
+    if (!workspaceRoot) {
+        vscode.window.showErrorMessage('CFM: No workspace folder open.');
+        return;
+    }
+
+    const featureDir = vscode.Uri.joinPath(workspaceRoot, '.feature');
+    const claudeCommandsDir = vscode.Uri.joinPath(workspaceRoot, '.claude', 'commands');
+    const templateDir = vscode.Uri.joinPath(context.extensionUri, 'out', 'template');
+
+    async function copyIfAbsent(src: vscode.Uri, dest: vscode.Uri) {
+        try {
+            await vscode.workspace.fs.stat(dest);
+            // File exists — skip
+        } catch {
+            await vscode.workspace.fs.copy(src, dest);
+        }
+    }
+
+    try {
+        await vscode.workspace.fs.createDirectory(featureDir);
+        await vscode.workspace.fs.createDirectory(claudeCommandsDir);
+
+        for (const file of ['PLAN.md', 'HOWTO.md']) {
+            await copyIfAbsent(
+                vscode.Uri.joinPath(templateDir, file),
+                vscode.Uri.joinPath(featureDir, file)
+            );
+        }
+
+        await copyIfAbsent(
+            vscode.Uri.joinPath(templateDir, 'feature lifecycle manager.md'),
+            vscode.Uri.joinPath(claudeCommandsDir, 'feature lifecycle manager.md')
+        );
+
+        vscode.window.showInformationMessage('CFM: Project initialised.');
+    } catch (err) {
+        vscode.window.showErrorMessage(`CFM: Init failed — ${err}`);
+    }
+}
 
 class CfmPanel {
     private static current: CfmPanel | undefined;
@@ -65,22 +111,27 @@ class CfmPanel {
         );
 
         this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
+
+        // Watch PLAN.md for external changes and refresh automatically
+        const watcher = vscode.workspace.createFileSystemWatcher(
+            new vscode.RelativePattern(workspaceRoot, PLAN_PATH)
+        );
+        watcher.onDidChange(() => this.loadAndSend(), null, this.disposables);
+        watcher.onDidCreate(() => this.loadAndSend(), null, this.disposables);
+        watcher.onDidDelete(() => this.loadAndSend(), null, this.disposables);
+        this.disposables.push(watcher);
     }
 
     private async loadAndSend() {
         try {
-            let bytes: Uint8Array;
+            let content = '';
             try {
-                bytes = await vscode.workspace.fs.readFile(this.planUri);
+                const bytes = await vscode.workspace.fs.readFile(this.planUri);
+                content = Buffer.from(bytes).toString('utf8');
             } catch {
-                this.panel.webview.postMessage({ type: 'noProject' });
-                return;
+                // File not found — show empty board
             }
-
-            const content = Buffer.from(bytes).toString('utf8');
             const data = parsePlan(content);
-            console.log('[CFM] planUri:', this.planUri.toString());
-            console.log('[CFM] parsed columns:', data.columns.map(c => `${c.title}(${c.cards.length})`).join(', '));
             this.panel.webview.postMessage({ type: 'updateView', data });
         } catch (err) {
             vscode.window.showErrorMessage(`CFM: Failed to load PLAN.md — ${err}`);
@@ -94,6 +145,10 @@ class CfmPanel {
             await this.initProject();
         } else if (msg.type === 'moveFeature') {
             await this.moveFeature(msg.featureId, msg.newStatus);
+        } else if (msg.type === 'updateCard') {
+            await this.updateCard(msg.card);
+        } else if (msg.type === 'previewFile') {
+            this.previewFeatureDoc(msg.cardId);
         }
     }
 
@@ -146,6 +201,36 @@ class CfmPanel {
         } catch (err) {
             vscode.window.showErrorMessage(`CFM: Failed to move feature — ${err}`);
         }
+    }
+
+    private async updateCard(updated: Card) {
+        try {
+            const bytes = await vscode.workspace.fs.readFile(this.planUri);
+            const data = parsePlan(Buffer.from(bytes).toString('utf8'));
+
+            for (const col of data.columns) {
+                const idx = col.cards.findIndex(c => c.id === updated.id);
+                if (idx !== -1) {
+                    col.cards[idx] = updated;
+                    break;
+                }
+            }
+
+            await vscode.workspace.fs.writeFile(
+                this.planUri,
+                Buffer.from(serializePlan(data), 'utf8')
+            );
+            this.panel.webview.postMessage({ type: 'updateView', data });
+        } catch (err) {
+            vscode.window.showErrorMessage(`CFM: Failed to update card — ${err}`);
+        }
+    }
+
+    private previewFeatureDoc(cardId: string) {
+        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri;
+        if (!workspaceRoot) { return; }
+        const fileUri = vscode.Uri.joinPath(workspaceRoot, '.feature', 'execute', `${cardId}.md`);
+        vscode.commands.executeCommand('markdown.showPreview', fileUri);
     }
 
     private getHtml(): string {

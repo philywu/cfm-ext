@@ -1,15 +1,10 @@
 import { useEffect, useState } from 'react';
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { KanbanData } from './types';
+import { Card, KanbanData } from './types';
 import { Column } from './components/Column';
+import { CardDetail } from './components/CardDetail';
 import './theme.css';
-
-// VS Code webview API
-declare function acquireVsCodeApi(): {
-    postMessage(msg: unknown): void;
-};
-
-const vscodeApi = acquireVsCodeApi();
+import { vscodeApi } from './vscodeApi';
 
 type AppState =
     | { phase: 'loading' }
@@ -18,6 +13,7 @@ type AppState =
 
 export function App() {
     const [state, setState] = useState<AppState>({ phase: 'loading' });
+    const [selected, setSelected] = useState<{ card: Card; columnTitle: string } | null>(null);
 
     const sensors = useSensors(useSensor(PointerSensor, {
         activationConstraint: { distance: 5 },
@@ -28,6 +24,15 @@ export function App() {
             const msg = event.data;
             if (msg.type === 'updateView') {
                 setState({ phase: 'board', data: msg.data });
+                // Keep selected card in sync after a move
+                setSelected(prev => {
+                    if (!prev) { return null; }
+                    for (const col of msg.data.columns) {
+                        const card = col.cards.find((c: Card) => c.id === prev.card.id);
+                        if (card) { return { card, columnTitle: col.title }; }
+                    }
+                    return null;
+                });
             } else if (msg.type === 'noProject') {
                 setState({ phase: 'noProject' });
             }
@@ -95,12 +100,29 @@ export function App() {
         );
     }
 
+    function handleSelect(card: Card) {
+        const col = state.phase === 'board'
+            ? state.data.columns.find(c => c.cards.some(ca => ca.id === card.id))
+            : undefined;
+        setSelected(col ? { card, columnTitle: col.title } : null);
+    }
+
     return (
         <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-            <div className="board">
-                {state.data.columns.map(col => (
-                    <Column key={col.id} column={col} />
-                ))}
+            <div className="workspace">
+                <div className="board">
+                    {state.data.columns.map(col => (
+                        <Column key={col.id} column={col} onSelect={handleSelect} />
+                    ))}
+                </div>
+                {selected && (
+                    <CardDetail
+                        card={selected.card}
+                        columnTitle={selected.columnTitle}
+                        onClose={() => setSelected(null)}
+                        onUpdate={card => vscodeApi.postMessage({ type: 'updateCard', card })}
+                    />
+                )}
             </div>
         </DndContext>
     );

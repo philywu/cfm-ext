@@ -1,8 +1,15 @@
+export interface Action {
+    type: string;
+    description: string;
+    status: string;
+}
+
 export interface Card {
     id: string;
     title: string;
     branch?: string;
     description?: string;
+    actions?: Action[];
 }
 
 export interface Column {
@@ -31,5 +38,15 @@ export interface InitProjectMessage {
     type: 'initProject';
 }
 
+export interface UpdateCardMessage {
+    type: 'updateCard';
+    card: Card;
+}
+
+export interface PreviewFileMessage {
+    type: 'previewFile';
+    cardId: string;
+}
+
 export type HostToWebviewMessage = UpdateViewMessage;
-export type WebviewToHostMessage = MoveFeatureMessage | InitProjectMessage;
+export type WebviewToHostMessage = MoveFeatureMessage | InitProjectMessage | UpdateCardMessage | PreviewFileMessage;

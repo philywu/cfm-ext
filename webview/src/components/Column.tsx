@@ -1,12 +1,13 @@
 import { useDroppable } from '@dnd-kit/core';
-import { Column as ColumnType } from '../types';
+import { Card, Column as ColumnType } from '../types';
 import { FeatureCard } from './FeatureCard';
 
 interface Props {
     column: ColumnType;
+    onSelect: (card: Card) => void;
 }
 
-export function Column({ column }: Props) {
+export function Column({ column, onSelect }: Props) {
     const { setNodeRef, isOver } = useDroppable({ id: column.id });
 
     return (
@@ -17,7 +18,7 @@ export function Column({ column }: Props) {
             </div>
             <div ref={setNodeRef} className={`column-body${isOver ? ' over' : ''}`}>
                 {column.cards.map(card => (
-                    <FeatureCard key={card.id} card={card} />
+                    <FeatureCard key={card.id} card={card} columnId={column.id} onSelect={onSelect} />
                 ))}
             </div>
         </div>
