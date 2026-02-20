@@ -23,7 +23,7 @@ export function parsePlan(content: string): KanbanData {
         descLines.length = 0;
     }
 
-    const lines = content.split('\n');
+    const lines = content.replace(/\r/g, '').split('\n');
     for (const line of lines) {
         // ## #Status heading
         const colMatch = line.match(/^##\s+#(.+)$/);

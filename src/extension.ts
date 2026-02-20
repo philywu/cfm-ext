@@ -65,8 +65,6 @@ class CfmPanel {
         );
 
         this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
-
-        this.loadAndSend();
     }
 
     private async loadAndSend() {
@@ -81,14 +79,18 @@ class CfmPanel {
 
             const content = Buffer.from(bytes).toString('utf8');
             const data = parsePlan(content);
+            console.log('[CFM] planUri:', this.planUri.toString());
+            console.log('[CFM] parsed columns:', data.columns.map(c => `${c.title}(${c.cards.length})`).join(', '));
             this.panel.webview.postMessage({ type: 'updateView', data });
         } catch (err) {
             vscode.window.showErrorMessage(`CFM: Failed to load PLAN.md — ${err}`);
         }
     }
 
-    private async handleMessage(msg: WebviewToHostMessage) {
-        if (msg.type === 'initProject') {
+    private async handleMessage(msg: WebviewToHostMessage | { type: 'ready' }) {
+        if (msg.type === 'ready') {
+            await this.loadAndSend();
+        } else if (msg.type === 'initProject') {
             await this.initProject();
         } else if (msg.type === 'moveFeature') {
             await this.moveFeature(msg.featureId, msg.newStatus);

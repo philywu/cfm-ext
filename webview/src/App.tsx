@@ -33,6 +33,8 @@ export function App() {
             }
         };
         window.addEventListener('message', handler);
+        // Signal to the extension host that the webview is ready to receive messages
+        vscodeApi.postMessage({ type: 'ready' });
         return () => window.removeEventListener('message', handler);
     }, []);
 
