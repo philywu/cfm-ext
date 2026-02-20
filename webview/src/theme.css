@@ -1,0 +1,105 @@
+@import "tailwindcss";
+
+body {
+  background: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  margin: 0;
+  padding: 0;
+}
+
+.board {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  overflow-x: auto;
+  height: 100vh;
+  box-sizing: border-box;
+}
+
+.column {
+  background: var(--vscode-sideBar-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  min-width: 200px;
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.column-header {
+  padding: 10px 12px;
+  font-weight: 600;
+  font-size: 0.85em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  color: var(--vscode-foreground);
+}
+
+.column-body {
+  padding: 8px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 40px;
+}
+
+.column-body.over {
+  background: var(--vscode-list-dropBackground, rgba(255,255,255,0.05));
+}
+
+.card {
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  cursor: grab;
+  user-select: none;
+}
+
+.card:hover {
+  border-color: var(--vscode-focusBorder);
+}
+
+.card.dragging {
+  opacity: 0.5;
+}
+
+.card-title {
+  font-size: 0.9em;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.card-branch {
+  font-size: 0.75em;
+  color: var(--vscode-descriptionForeground);
+  font-family: var(--vscode-editor-font-family);
+}
+
+.init-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 16px;
+  color: var(--vscode-foreground);
+}
+
+.init-prompt button {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border: none;
+  padding: 8px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9em;
+}
+
+.init-prompt button:hover {
+  background: var(--vscode-button-hoverBackground);
+}
