@@ -31,3 +31,8 @@ export interface PreviewFileMessage {
     type: 'previewFile';
     cardId: string;
 }
+
+export interface RunClaudeCommandMessage {
+    type: 'runClaudeCommand';
+    state: string;
+}

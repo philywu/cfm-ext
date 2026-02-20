@@ -37,13 +37,44 @@ body {
 }
 
 .column-header {
-  padding: 10px 12px;
+  padding: 8px 8px 8px 12px;
   font-weight: 600;
   font-size: 0.85em;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   border-bottom: 1px solid var(--vscode-panel-border);
   color: var(--vscode-foreground);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.column-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.column-run-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  padding: 3px 5px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.column:hover .column-run-btn {
+  opacity: 1;
+}
+
+.column-run-btn:hover {
+  color: var(--vscode-foreground);
+  background: var(--vscode-toolbar-hoverBackground);
 }
 
 .column-body {

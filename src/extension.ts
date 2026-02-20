@@ -149,6 +149,8 @@ class CfmPanel {
             await this.updateCard(msg.card);
         } else if (msg.type === 'previewFile') {
             this.previewFeatureDoc(msg.cardId);
+        } else if (msg.type === 'runClaudeCommand') {
+            this.runClaudeCommand(msg.state);
         }
     }
 
@@ -224,6 +226,21 @@ class CfmPanel {
         } catch (err) {
             vscode.window.showErrorMessage(`CFM: Failed to update card — ${err}`);
         }
+    }
+
+    private runClaudeCommand(state: string) {
+        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        let terminal = vscode.window.terminals.find(
+            t => t.name === 'Claude Feature Manager' && t.exitStatus === undefined
+        );
+        if (!terminal) {
+            terminal = vscode.window.createTerminal({
+                name: 'Claude Feature Manager',
+                cwd: workspaceRoot,
+            });
+        }
+        terminal.show(true);
+        terminal.sendText(`claude -p "/feature ${state}"`);
     }
 
     private previewFeatureDoc(cardId: string) {

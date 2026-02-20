@@ -48,5 +48,10 @@ export interface PreviewFileMessage {
     cardId: string;
 }
 
+export interface RunClaudeCommandMessage {
+    type: 'runClaudeCommand';
+    state: string;
+}
+
 export type HostToWebviewMessage = UpdateViewMessage;
-export type WebviewToHostMessage = MoveFeatureMessage | InitProjectMessage | UpdateCardMessage | PreviewFileMessage;
+export type WebviewToHostMessage = MoveFeatureMessage | InitProjectMessage | UpdateCardMessage | PreviewFileMessage | RunClaudeCommandMessage;
