@@ -3,6 +3,15 @@
   "displayName": "Claude Feature Manager",
   "description": "Kanban board for Claude Code feature/PLAN.md workflow",
   "version": "0.0.1",
+  "publisher": "woophily",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/philywu/cfm-ext.git"
+  },
+  "bugs": {
+    "url": "https://github.com/philywu/cfm-ext/issues"
+  },
   "engines": {
     "vscode": "^1.109.0"
   },
