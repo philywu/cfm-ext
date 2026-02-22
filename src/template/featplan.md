@@ -22,7 +22,7 @@ The user may have passed a status filter as an argument: `$ARGUMENTS`
 
 ## Step 1 — Read and Parse PLAN.md
 
-Read `feature/PLAN.md`. The file contains features grouped under status headings:
+Read `.feature/PLAN.md`. The file contains features grouped under status headings:
 
 - `## #to-do` — Backlog; no action needed
 - `## #plan` — Ready to be planned; create a design doc
@@ -57,11 +57,11 @@ For each feature under `## #plan`:
 
 1. **Enter plan mode** using `EnterPlanMode`.
 2. Explore the codebase to understand the relevant files, patterns, and dependencies.
-3. Create a detailed plan document at `feature/execute/<kebab-case-feature-name>.md` using the template below.
+3. Create a detailed plan document at `.feature/execute/<kebab-case-feature-name>.md` using the template below.
 4. Use `ExitPlanMode` to present the plan for user approval.
-5. Update `feature/PLAN.md` — move the feature entry from `## #plan` to `## #review`.
-
-**Plan document template** (`feature/execute/<name>.md`):
+5. Update `.feature/PLAN.md` — move the feature entry from `## #plan` to `## #review`.
+6. Do not execute the plan until the review is done.
+**Plan document template** (`.feature/execute/<name>.md`):
 
 ```markdown
 # Feature: <Feature Name>
@@ -109,7 +109,7 @@ How to verify the feature works.
 
 For each feature under `## #review`:
 
-1. Read the corresponding `feature/execute/<name>.md`.
+1. Read the corresponding `.feature/execute/<name>.md`.
 2. Read any user comments in the feature entry in `PLAN.md`.
 3. If comments exist:
    - Update the `## User Comments` section of the execute doc.
@@ -123,17 +123,17 @@ For each feature under `## #review`:
 
 For each feature under `## #goahead`:
 
-1. Read the corresponding `feature/execute/<name>.md` implementation plan.
+1. Read the corresponding `.feature/execute/<name>.md` implementation plan.
 
 2. **Git — create feature branch:**
    - Parse the feature entry in `PLAN.md` for a `git-branch: <name>` line.
      - If found, that value is the **parent branch** (e.g. `main`, `develop`).
      - If absent, the parent branch defaults to `features`.
-   - Derive the **feature branch name**: `feature/<kebab-case-feature-name>`.
+   - Derive the **feature branch name**: `.feature/<kebab-case-feature-name>`.
    - Run: `git checkout <parent-branch> 2>/dev/null || git checkout -b <parent-branch>` — switch to (or create) the parent branch.
-   - Run: `git checkout -b feature/<kebab-name>` — create and switch to the feature branch.
+   - Run: `git checkout -b .feature/<kebab-name>` — create and switch to the feature branch.
    - Record both branch names in the execute doc:
-     - Set `**Git Branch:** feature/<kebab-name>`
+     - Set `**Git Branch:** .feature/<kebab-name>`
      - Set `**Git Parent:** <parent-branch>`
 
 3. **Implement all steps** in the plan:
@@ -148,7 +148,7 @@ For each feature under `## #goahead`:
 
 5. Update the execute doc — populate `## Implementation Notes` with what was done, deviations from the plan, and files changed. Set `**Status:** executing`. Update `**Last Updated**`.
 
-6. Update `feature/PLAN.md` — move the feature from `## #goahead` to `## #executing`.
+6. Update `.feature/PLAN.md` — move the feature from `## #goahead` to `## #executing`.
 
 ---
 
@@ -156,7 +156,7 @@ For each feature under `## #goahead`:
 
 For each feature under `## #executing`:
 
-1. Read the corresponding `feature/execute/<name>.md`.
+1. Read the corresponding `.feature/execute/<name>.md`.
 2. Note the `**Git Branch:**` recorded in the doc. Run `git checkout <branch>` to ensure you are on the correct branch before making any changes.
 3. Read any user comments start with char '>' in the feature entry in `PLAN.md'
    - NEW to add new logic
@@ -179,22 +179,22 @@ For each feature under `## #executing`:
 
 For each feature under `## #complete`:
 
-1. Read the corresponding `feature/execute/<name>.md`.
+1. Read the corresponding `.feature/execute/<name>.md`.
 2. Note `**Git Branch:**` and `**Git Parent:**` from the execute doc.
 
 3. **Git — merge feature branch into parent:**
    - Run: `git checkout <parent-branch>`
-   - Run: `git merge feature/<kebab-name> --no-ff -m "feat: merge <Feature Name> into <parent-branch>"`
+   - Run: `git merge .feature/<kebab-name> --no-ff -m "feat: merge <Feature Name> into <parent-branch>"`
    - If the merge has conflicts, report them clearly and stop — do not force-resolve. Ask the user to resolve manually.
    - After a successful merge, record the merge commit hash in the execute doc under `## Implementation Notes`.
 
-4. Generate a concise changelog summary and append to `feature/FEATURE_LOG.md` using this format:
+4. Generate a concise changelog summary and append to `.feature/FEATURE_LOG.md` using this format:
 
    ```markdown
    ## <Feature Name> — <YYYY-MM-DD HH:MM>
 
    **Summary:** <one-sentence description>
-   **Branch:** `feature/<kebab-name>` → `<parent-branch>`
+   **Branch:** `.feature/<kebab-name>` → `<parent-branch>`
 
    **Changes:**
    - `path/to/file.py` — description of change
@@ -207,11 +207,11 @@ For each feature under `## #complete`:
    ---
    ```
 
-5. Update `feature/PLAN.md` — move the feature from `## #complete` to `## #closed`.
+5. Update `.feature/PLAN.md` — move the feature from `## #complete` to `## #closed`.
 6. bring all the comments with the status into `## #closed`. 
 7. generate a new comments as example: MERGED: Merged into `features` on 2026-02-20. Commit: `c16453f`
 7. **Git — delete feature branch:**
-   - Run: `git branch -D feature/<kebab-name>`
+   - Run: `git branch -D .feature/<kebab-name>`
 
 ---
 
@@ -222,8 +222,8 @@ After processing all features, output a concise summary table:
 ```text
 | Feature | Status    | Action Taken                                        |
 |---------|-----------|-----------------------------------------------------|
-| Name    | #plan     | Plan created at feature/execute/name.md             |
-| Name    | #goahead  | Branch feature/name created; implementation done    |
+| Name    | #plan     | Plan created at .feature/execute/name.md             |
+| Name    | #goahead  | Branch .feature/name created; implementation done    |
 | Name    | #complete | Merged into main; logged to FEATURE_LOG.md          |
 ```
 
@@ -231,7 +231,7 @@ After processing all features, output a concise summary table:
 
 ## Important Rules
 
-- Always read `feature/PLAN.md` fresh at the start — never rely on stale context.
+- Always read `.feature/PLAN.md` fresh at the start — never rely on stale context.
 - Always read the execute doc before modifying it.
 - Follow `CLAUDE.md` conventions: read discussion docs before architectural decisions, use existing patterns, do not over-engineer.
 - DB schema changes use `docker exec` (no Alembic), as documented in `CLAUDE.md`.
@@ -240,4 +240,4 @@ After processing all features, output a concise summary table:
 - Git: never force-push, never reset --hard, never skip hooks.
 - Git: if a merge conflict occurs during `#complete` processing, stop and report — do not auto-resolve.
 - Do not invent features or make changes beyond what is described.
-- If `feature/PLAN.md` is empty or has no actionable features in scope, report that and stop.
+- If `.feature/PLAN.md` is empty or has no actionable features in scope, report that and stop.

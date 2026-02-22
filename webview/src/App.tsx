@@ -111,8 +111,13 @@ export function App() {
         <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
             <div className="workspace">
                 <div className="board">
-                    {state.data.columns.map(col => (
-                        <Column key={col.id} column={col} onSelect={handleSelect} />
+                    {state.data.columns.map((col, idx) => (
+                        <Column
+                            key={col.id}
+                            column={col}
+                            onSelect={handleSelect}
+                            nextColumnId={state.data.columns[idx + 1]?.id}
+                        />
                     ))}
                 </div>
                 {selected && (

@@ -10,6 +10,7 @@ export interface Card {
     branch?: string;
     description?: string;
     actions?: Action[];
+    hasDoc?: boolean;
 }
 
 export interface Column {
@@ -35,4 +36,10 @@ export interface PreviewFileMessage {
 export interface RunClaudeCommandMessage {
     type: 'runClaudeCommand';
     state: string;
+}
+
+export interface AddCardMessage {
+    type: 'addCard';
+    columnId: string;
+    title: string;
 }

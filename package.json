@@ -42,7 +42,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "build:webview": "cd webview && npx vite build",
-    "copy:templates": "node -e \"const fs=require('fs');fs.mkdirSync('out/template',{recursive:true});['PLAN.md','HOWTO.md','feature lifecycle manager.md'].forEach(f=>fs.copyFileSync('src/template/'+f,'out/template/'+f))\"",
+    "copy:templates": "node -e \"const fs=require('fs');fs.mkdirSync('out/template',{recursive:true});['PLAN.md','HOWTO.md','featplan.md'].forEach(f=>fs.copyFileSync('src/template/'+f,'out/template/'+f))\"",
     "build": "npm run compile && npm run copy:templates && npm run build:webview",
     "pretest": "npm run build && npm run lint",
     "lint": "eslint src",

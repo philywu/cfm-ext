@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
+import { exec } from 'child_process';
 import { parsePlan, serializePlan } from './planParser';
-import { Card, WebviewToHostMessage } from './types';
+import { Card, WebviewToHostMessage, AddCardMessage } from './types';
 
 const PLAN_PATH = '.feature/PLAN.md';
 
@@ -17,11 +18,48 @@ export function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {}
 
+function runGitInit(cwd: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+        exec('git init', { cwd }, (err, _stdout, stderr) => {
+            if (err) { reject(new Error(stderr || err.message)); } else { resolve(); }
+        });
+    });
+}
+
 async function initFeatureFolder(context: vscode.ExtensionContext) {
     const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri;
     if (!workspaceRoot) {
         vscode.window.showErrorMessage('CFM: No workspace folder open.');
         return;
+    }
+
+    // Check if git is already initialised
+    const gitDir = vscode.Uri.joinPath(workspaceRoot, '.git');
+    let hasGit = false;
+    try {
+        await vscode.workspace.fs.stat(gitDir);
+        hasGit = true;
+    } catch {
+        // .git does not exist
+    }
+
+    if (!hasGit) {
+        const choice = await vscode.window.showInformationMessage(
+            'This workspace has no git repository. Run git init?',
+            { modal: true },
+            'Yes',
+            'No'
+        );
+        if (choice === 'Yes') {
+            try {
+                await runGitInit(workspaceRoot.fsPath);
+                vscode.window.showInformationMessage('CFM: git init completed.');
+            } catch (err) {
+                vscode.window.showErrorMessage(`CFM: git init failed — ${err}`);
+                return;
+            }
+        }
+        // 'No' or dismissed: fall through and continue init
     }
 
     const featureDir = vscode.Uri.joinPath(workspaceRoot, '.feature');
@@ -49,8 +87,8 @@ async function initFeatureFolder(context: vscode.ExtensionContext) {
         }
 
         await copyIfAbsent(
-            vscode.Uri.joinPath(templateDir, 'feature lifecycle manager.md'),
-            vscode.Uri.joinPath(claudeCommandsDir, 'feature lifecycle manager.md')
+            vscode.Uri.joinPath(templateDir, 'featplan.md'),
+            vscode.Uri.joinPath(claudeCommandsDir, 'featplan.md')
         );
 
         vscode.window.showInformationMessage('CFM: Project initialised.');
@@ -132,6 +170,24 @@ class CfmPanel {
                 // File not found — show empty board
             }
             const data = parsePlan(content);
+
+            // Annotate cards with hasDoc: true when .feature/execute/<id>.md exists
+            const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri;
+            if (workspaceRoot) {
+                const checks = data.columns.flatMap(col =>
+                    col.cards.map(async card => {
+                        const docUri = vscode.Uri.joinPath(workspaceRoot, '.feature', 'execute', `${card.id}.md`);
+                        try {
+                            await vscode.workspace.fs.stat(docUri);
+                            card.hasDoc = true;
+                        } catch {
+                            card.hasDoc = false;
+                        }
+                    })
+                );
+                await Promise.all(checks);
+            }
+
             this.panel.webview.postMessage({ type: 'updateView', data });
         } catch (err) {
             vscode.window.showErrorMessage(`CFM: Failed to load PLAN.md — ${err}`);
@@ -151,6 +207,8 @@ class CfmPanel {
             this.previewFeatureDoc(msg.cardId);
         } else if (msg.type === 'runClaudeCommand') {
             this.runClaudeCommand(msg.state);
+        } else if (msg.type === 'addCard') {
+            await this.addCard((msg as AddCardMessage).columnId, (msg as AddCardMessage).title);
         }
     }
 
@@ -199,7 +257,7 @@ class CfmPanel {
                 this.planUri,
                 Buffer.from(serializePlan(data), 'utf8')
             );
-            this.panel.webview.postMessage({ type: 'updateView', data });
+            await this.loadAndSend();
         } catch (err) {
             vscode.window.showErrorMessage(`CFM: Failed to move feature — ${err}`);
         }
@@ -222,9 +280,33 @@ class CfmPanel {
                 this.planUri,
                 Buffer.from(serializePlan(data), 'utf8')
             );
-            this.panel.webview.postMessage({ type: 'updateView', data });
+            await this.loadAndSend();
         } catch (err) {
             vscode.window.showErrorMessage(`CFM: Failed to update card — ${err}`);
+        }
+    }
+
+    private async addCard(columnId: string, title: string) {
+        try {
+            const bytes = await vscode.workspace.fs.readFile(this.planUri);
+            const data = parsePlan(Buffer.from(bytes).toString('utf8'));
+
+            const col = data.columns.find(c => c.id === columnId);
+            if (!col) {
+                vscode.window.showWarningMessage(`CFM: Column "${columnId}" not found.`);
+                return;
+            }
+
+            const id = title.toLowerCase().replace(/\s+/g, '-');
+            col.cards.push({ id, title });
+
+            await vscode.workspace.fs.writeFile(
+                this.planUri,
+                Buffer.from(serializePlan(data), 'utf8')
+            );
+            await this.loadAndSend();
+        } catch (err) {
+            vscode.window.showErrorMessage(`CFM: Failed to add card — ${err}`);
         }
     }
 

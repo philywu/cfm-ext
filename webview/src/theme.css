@@ -37,16 +37,19 @@ body {
 }
 
 .column-header {
-  padding: 8px 8px 8px 12px;
+  padding: 8px 8px 4px 12px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  color: var(--vscode-foreground);
+}
+
+.column-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   font-weight: 600;
   font-size: 0.85em;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  border-bottom: 1px solid var(--vscode-panel-border);
-  color: var(--vscode-foreground);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
 }
 
 .column-title {
@@ -54,27 +57,48 @@ body {
   min-width: 0;
 }
 
-.column-run-btn {
+.column-add-btn {
   flex-shrink: 0;
   background: none;
   border: none;
   color: var(--vscode-descriptionForeground);
   cursor: pointer;
-  padding: 3px 5px;
+  padding: 1px 6px;
   border-radius: 3px;
-  display: flex;
-  align-items: center;
-  opacity: 0;
-  transition: opacity 0.1s;
+  font-size: 1.1em;
+  line-height: 1;
 }
 
-.column:hover .column-run-btn {
-  opacity: 1;
-}
-
-.column-run-btn:hover {
+.column-add-btn:hover {
   color: var(--vscode-foreground);
   background: var(--vscode-toolbar-hoverBackground);
+}
+
+.column-cmd-hint {
+  font-family: var(--vscode-editor-font-family);
+  font-size: 0.72em;
+  color: var(--vscode-descriptionForeground);
+  opacity: 0.55;
+  margin-top: 3px;
+  padding-bottom: 2px;
+  white-space: nowrap;
+}
+
+.column-add-form {
+  margin-top: 4px;
+}
+
+.column-add-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-focusBorder);
+  border-radius: 3px;
+  padding: 4px 7px;
+  font-size: 0.88em;
+  font-family: var(--vscode-font-family);
+  outline: none;
 }
 
 .column-body {
@@ -131,8 +155,15 @@ body {
   min-width: 0;
 }
 
-.card-preview-btn {
+.card-actions {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.card-preview-btn,
+.card-next-btn {
   background: none;
   border: none;
   color: var(--vscode-descriptionForeground);
@@ -145,11 +176,13 @@ body {
   transition: opacity 0.1s;
 }
 
-.card:hover .card-preview-btn {
+.card:hover .card-preview-btn,
+.card:hover .card-next-btn {
   opacity: 1;
 }
 
-.card-preview-btn:hover {
+.card-preview-btn:hover,
+.card-next-btn:hover {
   color: var(--vscode-foreground);
   background: var(--vscode-toolbar-hoverBackground);
 }

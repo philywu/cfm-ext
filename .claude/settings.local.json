@@ -5,7 +5,8 @@
       "Bash(npm run compile:*)",
       "Bash(npm run build:webview:*)",
       "mcp__ide__getDiagnostics",
-      "Bash(npm run copy:templates:*)"
+      "Bash(npm run copy:templates:*)",
+      "Bash(npm run build:*)"
     ]
   }
 }

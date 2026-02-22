@@ -10,6 +10,7 @@ export interface Card {
     branch?: string;
     description?: string;
     actions?: Action[];
+    hasDoc?: boolean;
 }
 
 export interface Column {
@@ -53,5 +54,11 @@ export interface RunClaudeCommandMessage {
     state: string;
 }
 
+export interface AddCardMessage {
+    type: 'addCard';
+    columnId: string;
+    title: string;
+}
+
 export type HostToWebviewMessage = UpdateViewMessage;
-export type WebviewToHostMessage = MoveFeatureMessage | InitProjectMessage | UpdateCardMessage | PreviewFileMessage | RunClaudeCommandMessage;
+export type WebviewToHostMessage = MoveFeatureMessage | InitProjectMessage | UpdateCardMessage | PreviewFileMessage | RunClaudeCommandMessage | AddCardMessage;
