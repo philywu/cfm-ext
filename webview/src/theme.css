@@ -229,6 +229,28 @@ body {
   border-radius: 10px;
 }
 
+.detail-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.detail-delete-btn {
+  background: none;
+  border: none;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  padding: 3px 5px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+}
+
+.detail-delete-btn:hover {
+  color: #e85151;
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
 .detail-close {
   background: none;
   border: none;
@@ -442,6 +464,69 @@ body {
   font-size: 0.85em;
   font-style: italic;
   margin: 0;
+}
+
+/* ── History log panel ───────────────────────────────────────────────────── */
+
+.detail-log {
+  margin-top: 8px;
+  border-top: 1px solid var(--vscode-panel-border);
+  padding-top: 10px;
+}
+
+.detail-log-list {
+  max-height: 260px;
+  overflow-y: auto;
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.log-entry {
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 0.8em;
+}
+
+.log-entry-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.log-timestamp {
+  font-family: var(--vscode-editor-font-family);
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.9em;
+  flex: 1;
+}
+
+.log-actor {
+  font-weight: 600;
+  font-size: 0.85em;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  white-space: nowrap;
+}
+
+.log-item {
+  color: var(--vscode-editor-foreground);
+  line-height: 1.5;
+  padding-left: 10px;
+  position: relative;
+}
+
+.log-item::before {
+  content: '·';
+  position: absolute;
+  left: 2px;
+  color: var(--vscode-descriptionForeground);
 }
 
 .init-prompt {

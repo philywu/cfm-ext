@@ -43,3 +43,25 @@ export interface AddCardMessage {
     columnId: string;
     title: string;
 }
+
+export interface GetLogMessage {
+    type: 'getLog';
+    cardId: string;
+}
+
+export interface DeleteCardMessage {
+    type: 'deleteCard';
+    cardId: string;
+}
+
+export interface LogEntry {
+    timestamp: string;
+    actor: string;
+    items: string[];
+}
+
+export interface LogDataMessage {
+    type: 'logData';
+    cardId: string;
+    entries: LogEntry[];
+}

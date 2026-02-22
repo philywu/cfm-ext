@@ -60,5 +60,27 @@ export interface AddCardMessage {
     title: string;
 }
 
-export type HostToWebviewMessage = UpdateViewMessage;
-export type WebviewToHostMessage = MoveFeatureMessage | InitProjectMessage | UpdateCardMessage | PreviewFileMessage | RunClaudeCommandMessage | AddCardMessage;
+export interface GetLogMessage {
+    type: 'getLog';
+    cardId: string;
+}
+
+export interface DeleteCardMessage {
+    type: 'deleteCard';
+    cardId: string;
+}
+
+export interface LogEntry {
+    timestamp: string;
+    actor: string;
+    items: string[];
+}
+
+export interface LogDataMessage {
+    type: 'logData';
+    cardId: string;
+    entries: LogEntry[];
+}
+
+export type HostToWebviewMessage = UpdateViewMessage | LogDataMessage;
+export type WebviewToHostMessage = MoveFeatureMessage | InitProjectMessage | UpdateCardMessage | PreviewFileMessage | RunClaudeCommandMessage | AddCardMessage | GetLogMessage | DeleteCardMessage;

@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react';
-import { Action, Card } from '../types';
+import { useEffect, useRef, useState } from 'react';
+import { Action, Card, LogEntry } from '../types';
+import { vscodeApi } from '../vscodeApi';
 
 interface Props {
     card: Card;
@@ -9,20 +10,38 @@ interface Props {
 }
 
 export function CardDetail({ card, columnTitle, onClose, onUpdate }: Props) {
+    function handleDelete() {
+        vscodeApi.postMessage({ type: 'deleteCard', cardId: card.id });
+        // Panel will auto-close via App when updateView removes this card
+    }
     const [draft, setDraft] = useState<Card>(() => ({
         ...card,
         actions: card.actions ? card.actions.map(a => ({ ...a })) : [],
     }));
+    const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
 
     // Sync draft whenever the card prop changes (id change OR content change from external file update).
-    // Use a ref to track the last card JSON we synced from so we don't clobber local edits
-    // that haven't been saved yet — only override when the host sends new data.
     const lastSyncedJson = useRef(JSON.stringify(card));
     const incomingJson = JSON.stringify(card);
     if (incomingJson !== lastSyncedJson.current) {
         lastSyncedJson.current = incomingJson;
         setDraft({ ...card, actions: card.actions ? card.actions.map(a => ({ ...a })) : [] });
     }
+
+    // Request log when card changes, listen for logData responses
+    useEffect(() => {
+        setLogEntries([]);
+        vscodeApi.postMessage({ type: 'getLog', cardId: card.id });
+
+        function handler(event: MessageEvent) {
+            const msg = event.data;
+            if (msg.type === 'logData' && msg.cardId === card.id) {
+                setLogEntries(msg.entries);
+            }
+        }
+        window.addEventListener('message', handler);
+        return () => window.removeEventListener('message', handler);
+    }, [card.id]);
 
     function save(updated: Card) {
         setDraft(updated);
@@ -54,7 +73,14 @@ export function CardDetail({ card, columnTitle, onClose, onUpdate }: Props) {
         <div className="detail-panel">
             <div className="detail-header">
                 <span className="detail-status">{columnTitle}</span>
-                <button className="detail-close" onClick={onClose} title="Close">✕</button>
+                <div className="detail-header-actions">
+                    <button className="detail-delete-btn" onClick={handleDelete} title="Delete card">
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M6 2h4a1 1 0 0 0-2 0H6a1 1 0 0 0-2 0H2v1h1l1 11h8l1-11h1V2h-2a1 1 0 0 0-2 0zM5 14l-.9-10h7.8L11 14H5z"/>
+                        </svg>
+                    </button>
+                    <button className="detail-close" onClick={onClose} title="Close">✕</button>
+                </div>
             </div>
 
             <div className="detail-field">
@@ -155,6 +181,28 @@ export function CardDetail({ card, columnTitle, onClose, onUpdate }: Props) {
                         )}
                     </tbody>
                 </table>
+            </div>
+
+            {/* History log */}
+            <div className="detail-log">
+                <span className="detail-label">History</span>
+                <div className="detail-log-list">
+                    {logEntries.length === 0 ? (
+                        <p className="detail-empty">No history yet.</p>
+                    ) : (
+                        logEntries.map((entry, i) => (
+                            <div key={i} className="log-entry">
+                                <div className="log-entry-header">
+                                    <span className="log-timestamp">{entry.timestamp}</span>
+                                    <span className="log-actor">{entry.actor}</span>
+                                </div>
+                                {entry.items.map((item, j) => (
+                                    <div key={j} className="log-item">{item}</div>
+                                ))}
+                            </div>
+                        ))
+                    )}
+                </div>
             </div>
         </div>
     );

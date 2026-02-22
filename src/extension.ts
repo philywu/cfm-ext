@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
 import { exec } from 'child_process';
 import { parsePlan, serializePlan } from './planParser';
-import { Card, WebviewToHostMessage, AddCardMessage } from './types';
+import { Card, KanbanData, WebviewToHostMessage, AddCardMessage, GetLogMessage, DeleteCardMessage } from './types';
+import { getUserName, writeLogEntry, diffKanbanData, diffCard, parseLogFile, LogEntry } from './logger';
 
 const PLAN_PATH = '.feature/PLAN.md';
 
@@ -94,6 +95,30 @@ async function initFeatureFolder(context: vscode.ExtensionContext) {
         vscode.window.showInformationMessage('CFM: Project initialised.');
     } catch (err) {
         vscode.window.showErrorMessage(`CFM: Init failed — ${err}`);
+        return;
+    }
+
+    // Ensure .feature/ is in .gitignore (git must exist at this point)
+    try {
+        await vscode.workspace.fs.stat(vscode.Uri.joinPath(workspaceRoot, '.git'));
+        const gitignoreUri = vscode.Uri.joinPath(workspaceRoot, '.gitignore');
+        let content = '';
+        try {
+            const bytes = await vscode.workspace.fs.readFile(gitignoreUri);
+            content = Buffer.from(bytes).toString('utf8');
+        } catch {
+            // .gitignore does not yet exist — will be created
+        }
+        const alreadyIgnored = content.split('\n').map(l => l.trim()).some(l => l === '.feature' || l === '.feature/');
+        if (!alreadyIgnored) {
+            const prefix = content.length > 0 && !content.endsWith('\n') ? '\n' : '';
+            await vscode.workspace.fs.writeFile(
+                gitignoreUri,
+                Buffer.from(content + prefix + '.feature/\n', 'utf8')
+            );
+        }
+    } catch {
+        // No git repo — skip gitignore update silently
     }
 }
 
@@ -101,7 +126,22 @@ class CfmPanel {
     private static current: CfmPanel | undefined;
     private readonly panel: vscode.WebviewPanel;
     private readonly planUri: vscode.Uri;
+    private readonly logsUri: vscode.Uri;
+    private readonly workspaceRootUri: vscode.Uri;
     private readonly disposables: vscode.Disposable[] = [];
+
+    /** Snapshot of the last-sent board state, used for Claude-change diffing. */
+    private lastData: KanbanData | null = null;
+
+    /**
+     * Incremented before each internal PLAN.md write so the file-watcher
+     * callback can tell the difference between a user action and an external
+     * (Claude) edit.
+     */
+    private internalWriteCount = 0;
+
+    /** Git user name, resolved once at construction time. */
+    private userName = '';
 
     static createOrShow(context: vscode.ExtensionContext) {
         const column = vscode.window.activeTextEditor?.viewColumn;
@@ -138,7 +178,12 @@ class CfmPanel {
         workspaceRoot: vscode.Uri
     ) {
         this.panel = panel;
+        this.workspaceRootUri = workspaceRoot;
         this.planUri = vscode.Uri.joinPath(workspaceRoot, PLAN_PATH);
+        this.logsUri = vscode.Uri.joinPath(workspaceRoot, '.feature', 'logs');
+
+        // Resolve git user name asynchronously; fall back to OS username if git is unavailable
+        getUserName(workspaceRoot.fsPath).then(name => { this.userName = name; }).catch(() => {});
 
         this.panel.webview.html = this.getHtml();
 
@@ -150,14 +195,45 @@ class CfmPanel {
 
         this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
 
-        // Watch PLAN.md for external changes and refresh automatically
+        // Watch PLAN.md for changes
         const watcher = vscode.workspace.createFileSystemWatcher(
             new vscode.RelativePattern(workspaceRoot, PLAN_PATH)
         );
-        watcher.onDidChange(() => this.loadAndSend(), null, this.disposables);
+        // onDidChange: may be internal (user via UI) or external (Claude editing directly)
+        watcher.onDidChange(() => this.handleWatcherChange(), null, this.disposables);
         watcher.onDidCreate(() => this.loadAndSend(), null, this.disposables);
         watcher.onDidDelete(() => this.loadAndSend(), null, this.disposables);
         this.disposables.push(watcher);
+    }
+
+    /**
+     * Called by the file-system watcher when PLAN.md changes.
+     * If the change was caused by an internal write (user action via the UI),
+     * just refresh the view.  Otherwise diff with lastData and log as Claude.
+     */
+    private async handleWatcherChange() {
+        if (this.internalWriteCount > 0) {
+            this.internalWriteCount--;
+            // Internal write — already logged in the specific method; just refresh
+            await this.loadAndSend();
+            return;
+        }
+
+        // External change — Claude (or any other tool) edited PLAN.md directly
+        if (this.lastData) {
+            try {
+                const bytes = await vscode.workspace.fs.readFile(this.planUri);
+                const newData = parsePlan(Buffer.from(bytes).toString('utf8'));
+                const changes = diffKanbanData(this.lastData, newData);
+                for (const change of changes) {
+                    await writeLogEntry(this.logsUri, change.cardId, change.cardTitle, 'Claude', change.entries);
+                }
+            } catch {
+                // Logging errors must not interrupt the refresh
+            }
+        }
+
+        await this.loadAndSend();
     }
 
     private async loadAndSend() {
@@ -172,22 +248,20 @@ class CfmPanel {
             const data = parsePlan(content);
 
             // Annotate cards with hasDoc: true when .feature/execute/<id>.md exists
-            const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri;
-            if (workspaceRoot) {
-                const checks = data.columns.flatMap(col =>
-                    col.cards.map(async card => {
-                        const docUri = vscode.Uri.joinPath(workspaceRoot, '.feature', 'execute', `${card.id}.md`);
-                        try {
-                            await vscode.workspace.fs.stat(docUri);
-                            card.hasDoc = true;
-                        } catch {
-                            card.hasDoc = false;
-                        }
-                    })
-                );
-                await Promise.all(checks);
-            }
+            const checks = data.columns.flatMap(col =>
+                col.cards.map(async card => {
+                    const docUri = vscode.Uri.joinPath(this.workspaceRootUri, '.feature', 'execute', `${card.id}.md`);
+                    try {
+                        await vscode.workspace.fs.stat(docUri);
+                        card.hasDoc = true;
+                    } catch {
+                        card.hasDoc = false;
+                    }
+                })
+            );
+            await Promise.all(checks);
 
+            this.lastData = data;
             this.panel.webview.postMessage({ type: 'updateView', data });
         } catch (err) {
             vscode.window.showErrorMessage(`CFM: Failed to load PLAN.md — ${err}`);
@@ -209,11 +283,16 @@ class CfmPanel {
             this.runClaudeCommand(msg.state);
         } else if (msg.type === 'addCard') {
             await this.addCard((msg as AddCardMessage).columnId, (msg as AddCardMessage).title);
+        } else if (msg.type === 'getLog') {
+            await this.sendLogData((msg as GetLogMessage).cardId);
+        } else if (msg.type === 'deleteCard') {
+            await this.deleteCard((msg as DeleteCardMessage).cardId);
         }
     }
 
     private async initProject() {
         try {
+            this.internalWriteCount++;
             const initial = serializePlan({ columns: [] });
             await vscode.workspace.fs.writeFile(
                 this.planUri,
@@ -230,11 +309,13 @@ class CfmPanel {
             const bytes = await vscode.workspace.fs.readFile(this.planUri);
             const data = parsePlan(Buffer.from(bytes).toString('utf8'));
 
-            let movedCard = null;
+            let movedCard: Card | null = null;
+            let fromColumnTitle = '';
             for (const col of data.columns) {
                 const idx = col.cards.findIndex(c => c.id === featureId);
                 if (idx !== -1) {
                     movedCard = col.cards.splice(idx, 1)[0];
+                    fromColumnTitle = col.title;
                     break;
                 }
             }
@@ -253,10 +334,19 @@ class CfmPanel {
             }
 
             targetCol.cards.push(movedCard);
+
+            this.internalWriteCount++;
             await vscode.workspace.fs.writeFile(
                 this.planUri,
                 Buffer.from(serializePlan(data), 'utf8')
             );
+
+            const actor = `User (${this.userName})`;
+            await writeLogEntry(
+                this.logsUri, movedCard.id, movedCard.title, actor,
+                [`Status changed: \`${fromColumnTitle}\` → \`${targetCol.title}\``]
+            );
+
             await this.loadAndSend();
         } catch (err) {
             vscode.window.showErrorMessage(`CFM: Failed to move feature — ${err}`);
@@ -268,18 +358,30 @@ class CfmPanel {
             const bytes = await vscode.workspace.fs.readFile(this.planUri);
             const data = parsePlan(Buffer.from(bytes).toString('utf8'));
 
+            let oldCard: Card | null = null;
             for (const col of data.columns) {
                 const idx = col.cards.findIndex(c => c.id === updated.id);
                 if (idx !== -1) {
+                    oldCard = col.cards[idx];
                     col.cards[idx] = updated;
                     break;
                 }
             }
 
+            this.internalWriteCount++;
             await vscode.workspace.fs.writeFile(
                 this.planUri,
                 Buffer.from(serializePlan(data), 'utf8')
             );
+
+            if (oldCard) {
+                const entries = diffCard(oldCard, updated);
+                if (entries.length > 0) {
+                    const actor = `User (${this.userName})`;
+                    await writeLogEntry(this.logsUri, updated.id, updated.title, actor, entries);
+                }
+            }
+
             await this.loadAndSend();
         } catch (err) {
             vscode.window.showErrorMessage(`CFM: Failed to update card — ${err}`);
@@ -300,14 +402,74 @@ class CfmPanel {
             const id = title.toLowerCase().replace(/\s+/g, '-');
             col.cards.push({ id, title });
 
+            this.internalWriteCount++;
             await vscode.workspace.fs.writeFile(
                 this.planUri,
                 Buffer.from(serializePlan(data), 'utf8')
             );
+
+            const actor = `User (${this.userName})`;
+            await writeLogEntry(
+                this.logsUri, id, title, actor,
+                [`Card created in \`${col.title}\``]
+            );
+
             await this.loadAndSend();
         } catch (err) {
             vscode.window.showErrorMessage(`CFM: Failed to add card — ${err}`);
         }
+    }
+
+    private async deleteCard(cardId: string) {
+        try {
+            const bytes = await vscode.workspace.fs.readFile(this.planUri);
+            const data = parsePlan(Buffer.from(bytes).toString('utf8'));
+
+            let deletedCard: Card | null = null;
+            let fromColumnTitle = '';
+            for (const col of data.columns) {
+                const idx = col.cards.findIndex(c => c.id === cardId);
+                if (idx !== -1) {
+                    deletedCard = col.cards.splice(idx, 1)[0];
+                    fromColumnTitle = col.title;
+                    break;
+                }
+            }
+
+            if (!deletedCard) {
+                vscode.window.showWarningMessage(`CFM: Card "${cardId}" not found.`);
+                return;
+            }
+
+            this.internalWriteCount++;
+            await vscode.workspace.fs.writeFile(
+                this.planUri,
+                Buffer.from(serializePlan(data), 'utf8')
+            );
+
+            // Log the deletion — log file is intentionally kept
+            const actor = `User (${this.userName})`;
+            await writeLogEntry(
+                this.logsUri, deletedCard.id, deletedCard.title, actor,
+                [`Card deleted from \`${fromColumnTitle}\``]
+            );
+
+            await this.loadAndSend();
+        } catch (err) {
+            vscode.window.showErrorMessage(`CFM: Failed to delete card — ${err}`);
+        }
+    }
+
+    private async sendLogData(cardId: string) {
+        let entries: LogEntry[] = [];
+        try {
+            const logUri = vscode.Uri.joinPath(this.logsUri, `${cardId}.md`);
+            const bytes = await vscode.workspace.fs.readFile(logUri);
+            entries = parseLogFile(Buffer.from(bytes).toString('utf8'));
+        } catch {
+            // No log file yet — return empty list
+        }
+        this.panel.webview.postMessage({ type: 'logData', cardId, entries });
     }
 
     private runClaudeCommand(state: string) {
@@ -326,9 +488,7 @@ class CfmPanel {
     }
 
     private previewFeatureDoc(cardId: string) {
-        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri;
-        if (!workspaceRoot) { return; }
-        const fileUri = vscode.Uri.joinPath(workspaceRoot, '.feature', 'execute', `${cardId}.md`);
+        const fileUri = vscode.Uri.joinPath(this.workspaceRootUri, '.feature', 'execute', `${cardId}.md`);
         vscode.commands.executeCommand('markdown.showPreview', fileUri);
     }
 
