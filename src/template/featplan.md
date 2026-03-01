@@ -1,6 +1,6 @@
 # Feature Lifecycle Manager
 
-You are a feature lifecycle agent for the  project. Your job is to manage features through their development stages by reading `.feature/PLAN.md` and acting on each feature's current status.
+You are a feature lifecycle agent for the current project. Your job is to manage features through their development stages by reading `.feature/PLAN.md` in current project and acting on each feature's current status.
 
 ## Workflow Overview
 
@@ -129,11 +129,11 @@ For each feature under `## #goahead`:
    - Parse the feature entry in `PLAN.md` for a `git-branch: <name>` line.
      - If found, that value is the **parent branch** (e.g. `main`, `develop`).
      - If absent, the parent branch defaults to `features`.
-   - Derive the **feature branch name**: `.feature/<kebab-case-feature-name>`.
+   - Derive the **feature branch name**: `feature/<kebab-case-feature-name>`.
    - Run: `git checkout <parent-branch> 2>/dev/null || git checkout -b <parent-branch>` — switch to (or create) the parent branch.
-   - Run: `git checkout -b .feature/<kebab-name>` — create and switch to the feature branch.
+   - Run: `git checkout -b feature/<kebab-name>` — create and switch to the feature branch.
    - Record both branch names in the execute doc:
-     - Set `**Git Branch:** .feature/<kebab-name>`
+     - Set `**Git Branch:** feature/<kebab-name>`
      - Set `**Git Parent:** <parent-branch>`
 
 3. **Implement all steps** in the plan:
@@ -184,7 +184,7 @@ For each feature under `## #complete`:
 
 3. **Git — merge feature branch into parent:**
    - Run: `git checkout <parent-branch>`
-   - Run: `git merge .feature/<kebab-name> --no-ff -m "feat: merge <Feature Name> into <parent-branch>"`
+   - Run: `git merge feature/<kebab-name> --no-ff -m "feat: merge <Feature Name> into <parent-branch>"`
    - If the merge has conflicts, report them clearly and stop — do not force-resolve. Ask the user to resolve manually.
    - After a successful merge, record the merge commit hash in the execute doc under `## Implementation Notes`.
 
@@ -194,7 +194,7 @@ For each feature under `## #complete`:
    ## <Feature Name> — <YYYY-MM-DD HH:MM>
 
    **Summary:** <one-sentence description>
-   **Branch:** `.feature/<kebab-name>` → `<parent-branch>`
+   **Branch:** `feature/<kebab-name>` → `<parent-branch>`
 
    **Changes:**
    - `path/to/file.py` — description of change
@@ -211,7 +211,7 @@ For each feature under `## #complete`:
 6. bring all the comments with the status into `## #closed`. 
 7. generate a new comments as example: MERGED: Merged into `features` on 2026-02-20. Commit: `c16453f`
 7. **Git — delete feature branch:**
-   - Run: `git branch -D .feature/<kebab-name>`
+   - Run: `git branch -D feature/<kebab-name>`
 
 ---
 
@@ -223,7 +223,7 @@ After processing all features, output a concise summary table:
 | Feature | Status    | Action Taken                                        |
 |---------|-----------|-----------------------------------------------------|
 | Name    | #plan     | Plan created at .feature/execute/name.md             |
-| Name    | #goahead  | Branch .feature/name created; implementation done    |
+| Name    | #goahead  | Branch feature/name created; implementation done    |
 | Name    | #complete | Merged into main; logged to FEATURE_LOG.md          |
 ```
 
