@@ -1,78 +1,60 @@
-# Claude Feature Manager (CFM)
+# Claude Feature Manager
 
-> Visual Kanban board for managing Claude Code feature development workflow
+> A visual Kanban board for teams building with [Claude Code](https://claude.ai/code).
 
-<div align="center">
-
-**Status:** Early Development (v0.0.1) • **VS Code:** 1.109.0+
-
-</div>
+Claude Feature Manager (CFM) turns your `PLAN.md` feature file into a drag-and-drop Kanban board inside VS Code. It bridges the Claude Code `/feature` slash command workflow with a UI you can see, manage, and act on — without leaving your editor.
 
 ---
 
-## Overview
+## Features
 
-**Claude Feature Manager (CFM)** is a VS Code extension that transforms the text-based `feature/PLAN.md` workflow into an interactive Kanban board. Designed for teams using [Claude Code](https://claude.ai/code), CFM provides a visual interface for tracking feature development from ideation to completion.
-
-### Key Features
-
-- 📋 **Visual Kanban Board** — Drag-and-drop interface for feature management
-- 🔄 **Bidirectional Sync** — Changes in the board update `PLAN.md`, and vice versa
-- 🎯 **Status-Driven Workflow** — Seven lifecycle stages from `#to-do` to `#closed`
-- 🌲 **Git Branch Tracking** — Per-feature branch metadata automatically tracked
-- 🎨 **VS Code Theming** — Seamlessly integrates with your editor theme
+- **Kanban board** — seven status columns from backlog to archive, rendered as a webview panel inside VS Code
+- **Live sync** — edits to `.feature/PLAN.md` are reflected in the board immediately; moving a card writes back to the file
+- **Seven-stage lifecycle** — a clear, opinionated workflow designed around how Claude Code plans and implements features
+- **Git branch tracking** — each card carries the branch it will be implemented on; the `/feature` command uses this to create and merge branches automatically
+- **VS Code theme integration** — the board inherits your editor's color theme
 
 ---
 
-## Installation
+## Requirements
 
-### From Source
-
-```bash
-git clone <repository-url>
-cd cfm-ext
-npm install
-npm run build
-```
-
-Then press **F5** in VS Code to launch the Extension Development Host.
-
-### From Marketplace
-
-*(Coming soon)*
+- VS Code 1.109.0 or later
+- A workspace folder open in VS Code
+- [Claude Code](https://claude.ai/code) CLI (for the `/feature` slash command integration)
 
 ---
 
-## Quick Start
+## Getting Started
 
-### 1. Initialize Your Project
+### 1. Initialize your project
 
-Run the command:
+Open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and run:
 
 ```
 Claude Feature Manager: Init
 ```
 
-This creates:
-- `.feature/PLAN.md` — The feature board file
-- `.feature/HOWTO.md` — Usage guide
-- `.claude/commands/feature lifecycle manager.md` — Claude command template
+This creates three files in your workspace:
 
-### 2. Open the Kanban Board
+| File | Purpose |
+|------|---------|
+| `.feature/PLAN.md` | The feature board — you edit this directly |
+| `.feature/HOWTO.md` | Quick reference for the workflow |
+| `.claude/commands/feature lifecycle manager.md` | The `/feature` slash command for Claude Code |
 
-Run:
+### 2. Open the board
+
+Run from the Command Palette:
 
 ```
 Claude Feature Manager: Open
 ```
 
-The visual board opens, displaying seven status columns.
+The Kanban board opens in a side panel. Each column maps to one lifecycle stage.
 
-### 3. Add Your First Feature
+### 3. Add your first feature
 
-Either:
-- **Via Board**: Drag a card between columns (coming soon)
-- **Via Markdown**: Edit `.feature/PLAN.md` directly:
+Open `.feature/PLAN.md` and add an entry under the `## #to-do` heading:
 
 ```markdown
 ## #to-do
@@ -81,230 +63,135 @@ Either:
 Allow users to download their receipts as a CSV file.
 ```
 
-The board updates automatically on save.
+Save the file. The card appears on the board instantly.
 
 ---
 
-## Feature Workflow
+## The Seven-Stage Workflow
 
 ```
-   #to-do  →  #plan  →  #review  →  #goahead  →  #executing  →  #complete  →  #closed
-    Idea      Design    Approve     Implement     Test          Deploy       Archive
+#to-do → #plan → #review → #goahead → #executing → #complete → #closed
 ```
 
-| Status | Purpose | Next Action |
-|--------|---------|-------------|
-| **#to-do** | Feature backlog | Move to `#plan` when ready |
-| **#plan** | Design phase | Create design doc, move to `#review` |
-| **#review** | Awaiting approval | Add comments, move to `#goahead` or back to `#plan` |
-| **#goahead** | Ready to implement | Branch created, move to `#executing` |
-| **#executing** | In development | Implement feature, move to `#complete` |
-| **#complete** | Done, needs merge | Test, merge branch, move to `#closed` |
-| **#closed** | Archived | Logged in `FEATURE_LOG.md` |
+| Stage | What happens here |
+|-------|-------------------|
+| **#to-do** | Your backlog. Add ideas here, no action required. |
+| **#plan** | Move a card here when you want Claude Code to design a plan. Run `/feature plan`. |
+| **#review** | Claude has created a plan doc. Read it, leave comments, approve or revise. |
+| **#goahead** | You've approved the plan. Run `/feature goahead` — Claude creates a branch and implements the feature. |
+| **#executing** | Implementation is in progress. Run `/feature executing` to fix issues or add missing items. |
+| **#complete** | Feature is done. Run `/feature complete` — Claude merges the branch and archives the entry. |
+| **#closed** | Archived. Logged in `.feature/FEATURE_LOG.md`. |
+
+Move cards by dragging them between columns on the board, or by editing the status heading in `PLAN.md` directly.
 
 ---
 
-## Usage
+## Using the `/feature` Slash Command
 
-### Adding Features
+CFM sets up a `/feature` slash command in Claude Code that drives each lifecycle stage. Run it from the Claude Code chat panel inside VS Code.
 
-Edit `.feature/PLAN.md`:
+```
+/feature               # process all actionable stages
+/feature plan          # only plan features in #plan
+/feature goahead       # only implement features in #goahead
+/feature executing     # only fix features in #executing
+/feature complete      # only merge features in #complete
+/feature review        # only revise plans in #review
+```
+
+Use a status argument to focus on one stage without touching others.
+
+---
+
+## PLAN.md Format
+
+The board reads directly from `.feature/PLAN.md`. The format is standard Markdown:
+
+- `## #<status>` — a column heading (one per stage)
+- `### <Title>` — a feature card
+- Body text — a short description of the feature
+- `git-branch: <name>` — optional; sets which branch to merge into (defaults to `features`)
+- `> Comment: ...` — feedback for Claude Code to act on during the next `/feature` run
+
+**Example:**
 
 ```markdown
-## #to-do
+## #plan
 
 ### Dark Mode Support
-Add dark mode toggle to settings panel.
+Add a theme toggle to the settings panel.
+git-branch: main
+
+---
+
+## #review
+
+### Receipt Export to CSV
+Export receipts as a downloadable CSV file.
+git-branch: main
+> Comment: Include line items in the export, not just receipt headers.
+> Comment: Use semicolons as the delimiter, not commas.
+
+---
+
+## #goahead
 
 ### User Profile Page
-Display user info, avatar, and recent activity.
+Display avatar, username, and recent activity.
+git-branch: develop
+
+---
+
+## #executing
+
+### Budget Alerts
+Send notifications when spending crosses a threshold.
 git-branch: main
-```
-
-The `git-branch:` field is optional and defaults to `features`.
-
-### Moving Features
-
-Drag cards between columns in the Kanban UI, or manually move entries between status sections in `PLAN.md`.
-
-### Tracking Implementation
-
-Features in `#goahead` or `#executing` can have detailed design documents:
-
-```
-.feature/
-├── PLAN.md
-├── HOWTO.md
-├── execute/
-│   ├── dark-mode-support.md
-│   └── user-profile-page.md
-└── FEATURE_LOG.md
+> Bug: Alert fires even when the budget period has not started yet.
 ```
 
 ---
 
-## Architecture
+## Git Integration
 
-CFM uses a **Model-View-Controller** pattern split across VS Code's runtime environments:
+When `/feature goahead` runs, Claude Code creates a branch named `feature/<card-title>` from the branch specified in `git-branch:`. When `/feature complete` runs, that branch is merged back with `--no-ff` and a timestamped entry is appended to `.feature/FEATURE_LOG.md`.
 
-```
-┌─────────────────────────────────────────┐
-│  Extension Host (Node.js)               │
-│  • File I/O (.feature/PLAN.md)          │
-│  • Git operations (branch metadata)     │
-│  • Markdown parsing (unified + remark)  │
-│  • postMessage routing                  │
-└──────────────┬──────────────────────────┘
-               │
-               │ postMessage API
-               │
-┌──────────────▼──────────────────────────┐
-│  Webview (React + Tailwind)             │
-│  • Kanban UI (@dnd-kit/core)            │
-│  • Drag-and-drop state                  │
-│  • VS Code theme integration            │
-└─────────────────────────────────────────┘
-```
+| Stage | Git action |
+|-------|------------|
+| `#goahead` | `git checkout -b feature/<name>` from the parent branch |
+| `#executing` | `git checkout feature/<name>` before applying fixes |
+| `#complete` | `git merge feature/<name> --no-ff` into the parent branch |
 
-### Message Protocol
-
-| Message | Direction | Payload |
-|---------|-----------|---------|
-| `updateView` | Host → Webview | Full `KanbanData` JSON |
-| `moveFeature` | Webview → Host | `{ featureId, newStatus }` |
-| `updateCard` | Webview → Host | Modified card data |
-| `initProject` | Webview → Host | Trigger project initialization |
+If the parent branch does not exist yet, Claude Code creates it from the current HEAD.
 
 ---
 
-## Development
+## Commands
 
-### Prerequisites
-
-- Node.js 22+
-- VS Code 1.109.0+
-
-### Build Commands
-
-```bash
-npm run compile       # One-off TypeScript build
-npm run watch         # Incremental TS build (development)
-npm run build:webview # Build React webview bundle
-npm run build         # Full build (extension + webview + templates)
-npm run lint          # ESLint check
-npm run test          # Run vscode-test suite
-```
-
-### Project Structure
-
-```
-cfm-ext/
-├── src/                          # Extension Host (Node.js)
-│   ├── extension.ts              # Activation, commands, panel controller
-│   ├── planParser.ts             # PLAN.md parsing/serialization
-│   ├── gitClient.ts              # Git operations (planned)
-│   ├── types.ts                  # Shared TypeScript types
-│   └── template/                 # Initial project templates
-│       ├── PLAN.md
-│       ├── HOWTO.md
-│       └── feature lifecycle manager.md
-│
-├── webview/                      # Webview UI (React)
-│   ├── src/
-│   │   ├── App.tsx               # Kanban board root
-│   │   ├── main.tsx              # React entry point
-│   │   ├── vscodeApi.ts          # postMessage wrapper
-│   │   ├── theme.css             # VS Code theming
-│   │   └── components/
-│   │       ├── Column.tsx        # Status column
-│   │       ├── FeatureCard.tsx   # Draggable card
-│   │       └── CardDetail.tsx    # Card detail view
-│   ├── vite.config.ts            # Vite bundler config
-│   └── tsconfig.json
-│
-├── out/                          # Compiled output (gitignored)
-├── package.json
-└── tsconfig.json
-```
-
-### Running Locally
-
-1. Clone the repository
-2. `npm install`
-3. Press **F5** in VS Code
-4. In the Extension Development Host, run `Claude Feature Manager: Init`
-5. Run `Claude Feature Manager: Open` to launch the board
+| Command | Description |
+|---------|-------------|
+| `Claude Feature Manager: Open` | Open the Kanban board panel |
+| `Claude Feature Manager: Init` | Initialize `.feature/` folder and templates |
 
 ---
 
-## Roadmap
+## Tips
 
-- [x] Basic Kanban board rendering
-- [x] PLAN.md parsing
-- [x] Project initialization command
-- [ ] Full drag-and-drop functionality
-- [ ] Real-time markdown sync
-- [ ] Git branching integration (`features-meta` orphan branch)
-- [ ] Card detail editing in webview
-- [ ] Search and filter features
-- [ ] Multi-workspace support
-- [ ] VSCode marketplace publication
+- **Leave comments in `PLAN.md`, not in the execute docs.** Claude Code reads comments from `PLAN.md` and propagates them into the per-feature design document.
+- **The execute doc is the source of truth.** Claude Code always re-reads `.feature/execute/<name>.md` before making any code changes.
+- **Multiple features at once.** Running `/feature` with no argument processes all actionable stages in a single pass.
+- **Merge conflicts.** Claude Code never force-resolves conflicts. Fix them manually, then re-run `/feature complete`.
+- **Filter by stage.** Use `/feature <status>` to work on one stage without triggering unrelated work.
 
 ---
 
-## Contributing
+## Extension Settings
 
-This project is in early development. Contributions welcome!
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
----
-
-## Technical Details
-
-### Markdown Parsing
-
-CFM uses `unified` + `remark-parse` for robust markdown parsing:
-- `## #<status>` headings → Kanban columns
-- `### <title>` headings → Feature cards
-- `git-branch: <name>` → Branch metadata
-- `> comment` → Action items
-
-### VS Code Integration
-
-- **Commands**: `cfm-ext.openPanel`, `cfm-ext.init`
-- **Activation**: On command invocation
-- **File Watching**: `onDidChangeTextDocument` for live sync
-- **Webview**: Persistent panel with script execution enabled
-
-### Dependencies
-
-- **Extension Host**: `unified`, `remark-parse` (planned)
-- **Webview**: `react`, `@dnd-kit/core`, `tailwindcss`
-- **Build**: `typescript`, `vite`, `eslint`
+This extension does not add any VS Code settings at this time.
 
 ---
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
-
----
-
-## Acknowledgments
-
-- Inspired by the [Claude Code](https://claude.ai/code) feature workflow
-- Built with the [VS Code Extension API](https://code.visualstudio.com/api)
-- UI powered by [@dnd-kit](https://dndkit.com/)
-
----
-
-<div align="center">
-
-Made with ❤️ for the Claude Code community
-
-</div>
+MIT — see [LICENSE](LICENSE) for details.
