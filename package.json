@@ -2,7 +2,7 @@
   "name": "cfm-ext",
   "displayName": "Claude Feature Manager",
   "description": "Kanban board for Claude Code feature/PLAN.md workflow",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "publisher": "leinster",
   "license": "MIT",
   "repository": {
